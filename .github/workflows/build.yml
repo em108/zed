@@ -1,0 +1,99 @@
+# .github/workflows/build-windows.yml
+
+name: Build Zed for Windows
+
+# Trigger the workflow manually
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and Test on Windows
+    runs-on: windows-latest
+
+    steps:
+      # 1. Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # 2. Set up Rust toolchain
+      - name: Set Up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      # 3. Update Rust to the latest version
+      - name: Update Rust
+        run: rustup update
+
+      # 4. Add the wasm32-wasip1 target
+      - name: Add wasm32-wasip1 Target
+        run: rustup target add wasm32-wasip1
+
+      # 5. Install CMake using Chocolatey
+      - name: Install CMake
+        run: |
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
+        shell: powershell
+
+      # 6. Verify installations (optional but recommended)
+      - name: Verify Rust Installation
+        run: rustc --version && cargo --version
+
+      - name: Verify CMake Installation
+        run: cmake --version
+
+      # 7. Build the project in Debug mode
+      - name: Build Zed (Debug)
+        run: cargo build
+        shell: bash
+
+      # 8. Build the project in Release mode
+      - name: Build Zed (Release)
+        run: cargo build --release
+        shell: bash
+
+      # 9. Run the application (optional)
+      # Note: Running the application during CI may not be necessary unless specific checks are needed.
+      # Uncomment the following step if you want to run the application.
+      # - name: Run Zed Application
+      #   run: cargo run --release
+      #   shell: bash
+
+      # 10. Run the test suite
+      - name: Run Tests
+        run: cargo test --workspace
+        shell: bash
+
+      # 11. Upload build artifacts (e.g., binaries, logs)
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: zed-build-artifacts
+          path: |
+            target/debug/
+            target/release/
+            # Add other paths if needed, e.g., logs or specific binaries
+
+      # 12. (Optional) Cache Cargo dependencies to speed up future builds
+      - name: Cache Cargo Registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      # 13. (Optional) Set up environment variables for troubleshooting
+      - name: Set Environment Variables
+        run: |
+          echo "RUST_BACKTRACE=1" >> $GITHUB_ENV
+          echo "ZED_RC_TOOLKIT_PATH=C:\\Program Files (x86)\\Windows Kits\\10\\bin\\<SDK_version>\\x64" >> $GITHUB_ENV
+        shell: bash
+
+      # 14. (Optional) Handle specific troubleshooting steps
+      # You can add conditional steps based on specific errors or requirements.
