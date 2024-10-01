@@ -1,0 +1,94 @@
+# .github/workflows/build-windows.yml
+
+name: Build Zed for Windows 2
+
+# Trigger the workflow manually
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and Test on Windows
+    runs-on: windows-latest
+
+    steps:
+      # 1. Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # 2. Cache Cargo Registry and Build Dependencies
+      - name: Cache Cargo Registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            C:\Users\runneradmin\.cargo\registry
+            C:\Users\runneradmin\.cargo\git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      # 3. Set up Rust toolchain
+      - name: Set Up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      # 4. Update Rust to the latest version
+      - name: Update Rust
+        run: rustup update
+
+      # 5. Add the wasm32-wasip1 target
+      - name: Add wasm32-wasip1 Target
+        run: rustup target add wasm32-wasip1
+
+      # 6. Install CMake using Chocolatey
+      - name: Install CMake
+        run: |
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' --yes
+        shell: powershell
+
+      # 7. Clean the build directory
+      - name: Clean Build Directory
+        run: cargo clean
+        shell: bash
+
+      # 8. Verify installations (optional but recommended)
+      - name: Verify Rust Installation
+        run: rustc --version && cargo --version
+
+      - name: Verify CMake Installation
+        run: cmake --version
+
+      # 9. Build the project in Release mode
+      - name: Build Zed (Release)
+        run: cargo build --release
+        shell: bash
+
+      # 10. Strip the executable to reduce size
+      - name: Strip Executable
+        run: |
+          strip target/release/zed.exe
+        shell: bash
+
+      # 11. List the contents of target/release/
+      - name: List Release Directory Contents
+        run: |
+          du -h target/release/
+          ls -lh target/release/
+        shell: bash
+
+      # 12. Compress build artifacts
+      - name: Compress Build Artifacts
+        run: |
+          cd target/release
+          tar -czf zed-release.tar.gz *
+        shell: bash
+
+      # 13. Upload the compressed artifact
+      - name: Upload Release Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: zed-release-build
+          path: target/release/zed-release.tar.gz
